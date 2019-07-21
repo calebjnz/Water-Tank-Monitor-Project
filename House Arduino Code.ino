@@ -51,7 +51,6 @@ void setup() {
   Serial.println("hi");
   
   pinMode(10,OUTPUT);
-  pinMode(SDchipSelect,OUTPUT);
   digitalWrite(SDchipSelect,HIGH);
   digitalWrite(10,LOW);
   Serial.println("hi");
