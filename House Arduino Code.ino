@@ -21,7 +21,8 @@
 
 //sd card stuff/////////////////////////////////////////////////////////
 #include <SPI.h>
-#include <SD.h>
+#include <SdFat.h>
+SdFat SD;
 String dataString = "";
 const int SDchipSelect = 6;
 
@@ -49,13 +50,12 @@ void setup() {
   }
   Serial.println("hi");
   
-//  pinMode(10,OUTPUT);
- // pinMode(SDchipSelect,OUTPUT);
+  pinMode(10,OUTPUT);
+  pinMode(SDchipSelect,OUTPUT);
   digitalWrite(SDchipSelect,HIGH);
-  SPI.transfer(0xAA);
-  digitalWrite(10,HIGH);
-    Serial.println("hi");
-//LCD setup//////////
+  digitalWrite(10,LOW);
+  Serial.println("hi");
+  //LCD setup//////////
   lcd.begin(16,2);
   lcd.clear();
   lcd.setCursor(0,0);
@@ -72,16 +72,16 @@ void setup() {
   nRF905_setTXAddress(outgoing);
   // Put into receive mode
   nRF905_receive();
-  
   // Open serial communications and wait for port to open:
-
+  digitalWrite(10,HIGH);
+  digitalWrite(SDchipSelect,LOW);
 
   Serial.print("Initializing SD card...");
   lcd.clear();
   lcd.print("Initializing SD");
   // see if the card is present and can be initialized:
   digitalWrite(10,HIGH);//this is to end spi with rf 
- digitalWrite(SDchipSelect,LOW);//this begins spi with sd
+  digitalWrite(SDchipSelect,LOW);//this begins spi with sd
   if (!SD.begin(SDchipSelect))
   {
     Serial.println("Card failed, or not present");
@@ -96,32 +96,30 @@ void setup() {
   lcd.clear();
   lcd.print("Card initialized");
   digitalWrite(SDchipSelect,HIGH);//ends spi with sd card
-  SPI.transfer(0xAA);// might help the sd card get off of the miso line
   digitalWrite(10,LOW);//this starts spi communication with the rf module again
 }
 
 
 void loop() {
- nRF905_receive();
- int data[1];   //array size is 32 bytes defined by NRF905_MAX_PAYLOAD in library
- //this will keeping on asking the rf module to get data, if there is now data the while loop 
- //with nothing in it will keep on going on forever
- digitalWrite(SDchipSelect,HIGH);//turns off spi with sd
- SPI.transfer(0xAA); //might help the sd card get off of the miso line
- digitalWrite(10,LOW);//ensures spi communication with the rf module
- while(!nRF905_getData(data, sizeof(data)));
- {
-  
- }
- //if you get to here you have gotten out of the while loop and you have data stored in the 
- //data array
- Serial.println(data[0]);
- digitalWrite(10,HIGH);//ends spi with rf
- printToSD(data[0]);
- lcd.clear();
- lcd.print("got stuff");
- 
- Serial.println("got stuff");
+  nRF905_receive();
+  Serial.println("loop");
+  int data[1];   //array size is 32 bytes defined by NRF905_MAX_PAYLOAD in library
+  //this will keeping on asking the rf module to get data, if there is now data the while loop 
+  //with nothing in it will keep on going on forever
+  digitalWrite(SDchipSelect,HIGH);//turns off spi with sd
+  digitalWrite(10,LOW);//ensures spi communication with the rf module
+  Serial.println("loop");
+  while(!nRF905_getData(data, sizeof(data)));
+  {
+  }
+  //if you get to here you have gotten out of the while loop and you have data stored in the 
+  //data array
+  Serial.println(data[0]);
+  Serial.println("loope");
+  printToSD(data[0]);
+  lcd.clear();
+  lcd.print("got stuff");
+  Serial.println("got stuff");
 }
 
 
@@ -151,6 +149,5 @@ void printToSD(int z){
   }
   dataString = "";
   digitalWrite(SDchipSelect,HIGH);//this ends spi with sd card
-  SPI.transfer(0xAA);// might help the sd card get off of the miso line
   digitalWrite(10,LOW);//this starts spi communication with the rf module again
 }
