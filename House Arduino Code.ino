@@ -19,33 +19,37 @@
  This example code is in the public domain.
 
  */
+ /*
 //sd card stuff/////////////////////////////////////////////////////////
 #include <SPI.h>
 #include <SD.h>
 String dataString = "";
 const int SDchipSelect = 6;
+*/
 
-//lcd stuff/////////////////////////////////////////////////////////////
+/*/lcd stuff/////////////////////////////////////////////////////////////
 #include <LiquidCrystal.h>
 LiquidCrystal lcd(A0,A1,A2,A3,A4,A5);//pins for RS, E DB4,DB5,DB6,DB7
+*/
 
 //code stuff///////////////////////////////////////////////////////////
 String buffer;
 
 //rf stuff/////////////////////////////////////////////////////////////
 #include <nRF905.h>  //Library Author Zak Kemble, Web: http://blog.zakkemble.co.uk/nrf905-avrarduino-librarydriver/
-
+#include <SPI.h>
 #define RXADDR {0x58, 0x6F, 0x2E, 0x10} // Address of this device (4 bytes)
 #define TXADDR {0xFE, 0x4C, 0xA6, 0xE5} // Address of device to send to (4 bytes)
 #define PACKETPAUSE 250 // Short Break after receiving each data packet
 
 
 void setup() {
-  //LCD setup//////////
+  /*/LCD setup//////////
   lcd.begin(16,2);
   lcd.clear();
   lcd.setCursor(0,0);
-
+  */
+  pinMode(10,OUTPUT);
   //rf setup////////////
   // Power up nRF905 and initialize 
   nRF905_init();
@@ -64,13 +68,14 @@ void setup() {
   {
     ; // wait for serial port to connect. Needed for native USB port only
   }
-  
+  Serial.println("hi");
+/*  
   Serial.print("Initializing SD card...");
   lcd.clear();
   lcd.print("Initializing SD");
   // see if the card is present and can be initialized:
   digitalWrite(10,HIGH);//this is to end spi with rf 
-  digitalWrite(SDchipSelect,LOW);//this begins spi with sd
+ digitalWrite(SDchipSelect,LOW);//this begins spi with sd
   if (!SD.begin(SDchipSelect))
   {
     Serial.println("Card failed, or not present");
@@ -86,6 +91,7 @@ void setup() {
   lcd.print("Card initialized");
   digitalWrite(SDchipSelect,HIGH);//ends spi with sd card
   digitalWrite(10,LOW);//this starts spi communication with the rf module again
+  */
 }
 
 
@@ -94,8 +100,8 @@ void loop() {
  int data[1];   //array size is 32 bytes defined by NRF905_MAX_PAYLOAD in library
  //this will keeping on asking the rf module to get data, if there is now data the while loop 
  //with nothing in it will keep on going on forever
- digitalWrite(SDchipSelect,HIGH);//turns off spi with sd
- digitalWrite(10,LOW);//ensures spi communication with the rf module
+ //digitalWrite(SDchipSelect,HIGH);//turns off spi with sd
+ //digitalWrite(10,LOW);//ensures spi communication with the rf module
  while(!nRF905_getData(data, sizeof(data)));
  {
   
@@ -103,14 +109,15 @@ void loop() {
  //if you get to here you have gotten out of the while loop and you have data stored in the 
  //data array
  Serial.println(data[0]);
- digitalWrite(10,HIGH);//ends spi with rf
- printToSD(data[0]);
- lcd.clear();
+// digitalWrite(10,HIGH);//ends spi with rf
+// printToSD(data[0]);
+ /*lcd.clear();
  lcd.print("got stuff");
+ */
  Serial.println("got stuff");
 }
 
-
+/*
 void printToSD(int z){
   dataString = String(z);
   // open the file. note that only one file can be open at a time,
@@ -139,3 +146,4 @@ void printToSD(int z){
   digitalWrite(SDchipSelect,HIGH);//this ends spi with sd card
   digitalWrite(10,LOW);//this starts spi communication with the rf module again
 }
+*/
