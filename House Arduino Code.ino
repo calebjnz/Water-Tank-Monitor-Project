@@ -46,7 +46,7 @@ LiquidCrystal lcd(A0,A1,A2,A3,A4,A5);//pins for RS, E DB4,DB5,DB6,DB7
   data packet.  Each byte should be unique.  The address should have several level shifts (101010101). 
 */
 ///////////////////////////////////////////////////////////////
-//VARIABLES
+//GLOBAL VARIABLES
 ///////////////////////////////////////////////////////////////
 long int timeOfLastMessage = 0;
 long int timeOfLastScreenChange = 0;
@@ -143,8 +143,10 @@ void changeScreen()//the screen number changes every 4sec which will make the lc
   }
 }
 
+
 void showTodaysWaterLevel()// the equation for pressure vs water tank depth is d = 0.9821p +57.639
 {
+  float depth = 0;
   lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("Todays depth =");
@@ -153,13 +155,16 @@ void showTodaysWaterLevel()// the equation for pressure vs water tank depth is d
   Serial.print("today ");
   Serial.println(day);
   Serial.print("depth ");
-  Serial.println(EEPROM.read(day));
-  lcd.print(EEPROM.read(day));
+  depth = EEPROM.read(day) / 50;//because we multiplied i by 50 to get it to fit in the eeprom
+  Serial.println(depth);
+  lcd.print(depth);
   delay(100);
 }
 
+
 void showYesterdaysWaterLevel()
 {
+  float depth = 0;
   lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("Yesterdays depth");
@@ -168,41 +173,60 @@ void showYesterdaysWaterLevel()
   Serial.print("yesterday date ");
   Serial.println(day);
   Serial.print("depth ");
-  Serial.println(EEPROM.read(day),DEC);
-  lcd.print(EEPROM.read(day),DEC);
+  depth = EEPROM.read(day) / 50;//because we multiplied i by 50 to get it to fit in the eeprom
+  Serial.println(depth);
+  lcd.print(depth);
   delay(100);
 }
+
 
 void dateWaterRunsOut()
 {
   float changeTotal = 0;
-  float numberChanges = 10;
+  float numberChanges = 5;
   float changeAverage = 0;
   float day = EEPROM.read(1023);
   float currentWaterLevel;
   float daysLeft = 0;
-  
-  if (day > 11)
+  if (day > 5)
   {
-    for(int j = day; j >= (day-10);j--)
+    for(int j = day; j >= (day-5);j--)
     {
-      changeTotal += EEPROM.read(j) - EEPROM.read(j-1);//this should add to the total the amount that the water level has decreased or increased from the previous day of the sample day
-      Serial.println(changeTotal);
+      int change = EEPROM.read(j) - EEPROM.read(j-1);//this should add to the total the amount that the water level has decreased or increased from the previous day of the sample day
+      changeTotal += change;
+      Serial.println(change);
     }
     changeAverage = changeTotal / numberChanges;//finds the average that the water level changes between each day on average
+    changeAverage  = changeAverage / 50;//because we multiplied i by 50 to get it to fit in the eeprom
     Serial.print("change average = ");
     Serial.println(changeAverage);
     currentWaterLevel = EEPROM.read(day);//gets todays water level
+    currentWaterLevel = currentWaterLevel / 50;
+    
+    //because we multiplied i by 50 to get it to fit in the eeprom
     Serial.print("current water level = ");
     Serial.println(currentWaterLevel);
     daysLeft = currentWaterLevel / changeAverage;//finds out how many days until the water runs out
-    Serial.print("days left = ");
-    Serial.println(daysLeft);
-    lcd.clear();
-    lcd.setCursor(0,0);
-    lcd.print("days till empty");
-    lcd.setCursor(0,2);
-    lcd.print(daysLeft);
+    if (daysLeft > 0)//we cant have a negative days left
+    {
+      Serial.print("days left = ");
+      Serial.println(daysLeft);
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("days till empty");
+      lcd.setCursor(0,2);
+      lcd.print(daysLeft);
+    }
+    else
+    {
+      Serial.print("days left = ");
+      Serial.println(daysLeft);
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("water level");
+      lcd.setCursor(0,2);
+      lcd.print("is increasing");
+    }
   }
   else
   {
@@ -215,14 +239,14 @@ void dateWaterRunsOut()
   }
 }
 
+
 void writeToEEPROM(int a)//records the recieved value to its day on the eeproms memory
 {
-  if(millis() - timeOfLastMessage > 60000 || timeOfLastMessage == 0)//either this is the first time the program has been run or that we have not recieved signals for a while and they are new day signals
+  if(millis() - timeOfLastMessage > 80000 || timeOfLastMessage == 0)//either this is the first time the program has been run or that we have not recieved signals for a while and they are new day signals
   {
     //this ensures that it only records the first signal of the burst of signals sent from the water tank
     timeOfLastMessage = millis();
-    //int depth = (0.9821 * ((a/256) * 1023) + 57.639); uncomment this when able to record values to eeprom
-    int depth = a;
+    int depth = (((0.9821 * a) +57.639) * 50);//we can store a float in the eeprom memory so we will multiply this by 50 we will divide by 50 when the values are printed out
     long today = EEPROM.read(1023) + 1;
     EEPROM.write(1023,today);// date changes when the house arduino receieves the first signal in a while, eeprom(1023) now holds the current date
     EEPROM.write(today,depth);//EEPROM.read(1023) is where we are going to store the day, this is because if the arduino resets it needs to know what day it was up to, first day is day 0
