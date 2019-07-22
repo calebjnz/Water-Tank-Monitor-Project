@@ -1,4 +1,34 @@
 
+/* nrf functions derived from 
+ *  Michael Welsh September 7, 2017 for implementation using the Arduino UNO
+ * To be used with complementary program transmitter_sample_JMW_V2
+ *  
+ * This program is designed to integrate the UNO and nRF905.  It operates in a
+ * RECEIVE mode to obtain data from the transmitter.  The transmitter is also integrated to 
+ * a UNO and NRF905.  This program receives up to 16 integer data types (2 bytes each) for a 
+ * maximum 32 byte packet.  Range for integer is -32768 through 32767. 
+ *  
+ * 
+ * Program and Library adopted from the Rethink Tech Inc. - Tinkbox (nRF905) and the
+ * Jeff Rowberg I2C device class
+ *  
+ *  
+ * UNO to nRF905 BOARD PIN/Control Feature
+ *
+ * 7 -> CE     Standby - High = TX/RX mode, Low = Standby
+ * 8 -> PWR    Power Up - High = On, Low = Off
+ * 9 -> TXE    TX or RX mode - High = TX, Low = RX
+ * 2 -> CD     Carrier Detect - High when RF signal detected, for collision avoidance 
+ * 3 -> DR     Data Ready - High when finished transmitting/data received
+ * 10 -> CSN   SPI SS
+ * 12 -> SO    SPI MISO
+ * 11 -> SI    SPI MOSI
+ * 13 -> SCK   SPI SCK
+ * GND -> GND  Ground
+
+ In this version if i turn the arduino off while this is going then things will be messed up
+ 
+*/
 ////////////////////////////////////////////////////////////////
 //LIBRARIES
 ///////////////////////////////////////////////////////////////
@@ -20,7 +50,7 @@ LiquidCrystal lcd(A0,A1,A2,A3,A4,A5);//pins for RS, E DB4,DB5,DB6,DB7
 ///////////////////////////////////////////////////////////////
 long int timeOfLastMessage = 0;
 long int timeOfLastScreenChange = 0;
-int screenNumber = 0;
+int screenNumber = 1;
 
 #define RXADDR {0x58, 0x6F, 0x2E, 0x10} // Address of this device (4 bytes)
 #define TXADDR {0xFE, 0x4C, 0xA6, 0xE5} // Address of device to send to (4 bytes)
@@ -36,6 +66,7 @@ void setup()
   lcd.begin(16,2);
   lcd.clear();
   lcd.setCursor(0,0);
+  lcd.print("setup");
   
   // Power up nRF905 and initialize
   nRF905_init();
@@ -66,14 +97,22 @@ void loop()//we are not allowed to have any delays in the loop at the moment bec
   int data[1];   //array size is 32 bytes defined by NRF905_MAX_PAYLOAD in library
           
   // Wait for data packet
+  Serial.println("in the loop");// for debugging
  
-  while(!nRF905_getData(data, sizeof(data)));
+  while(!nRF905_getData(data, sizeof(data)))
   {
     if(millis()- timeOfLastScreenChange > 4000)
     {
       screenNumber++;
       timeOfLastScreenChange = millis();
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("screen change");
+      Serial.println("screen change");//for debugging
       changeScreen();
+    }
+    else{
+      Serial.println("if statement not true");//debugging
     }
   }
   //if we have got here then we have recieved somthing
