@@ -85,10 +85,6 @@ void setup()
   // Start serial coomunication with monitor.  Send start message.
   Serial.begin(9600); 
   Serial.print(F("Receiver started....."));
-
-    /************/
-    //this will need to be removed in the real thing
-    EEPROM.write(1023,1);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -154,10 +150,11 @@ void showTodaysWaterLevel()// the equation for pressure vs water tank depth is d
   lcd.print("Todays depth =");
   lcd.setCursor(0,2);
   int day = EEPROM.read(1023);
-  Serial.println("day");
+  Serial.print("today ");
   Serial.println(day);
-  lcd.print(EEPROM.read(day),DEC);
-  Serial.println(EEPROM.read(day),DEC);
+  Serial.print("depth ");
+  Serial.println(EEPROM.read(day));
+  lcd.print(EEPROM.read(day));
   delay(100);
 }
 
@@ -167,9 +164,12 @@ void showYesterdaysWaterLevel()
   lcd.setCursor(0,0);
   lcd.print("Yesterdays depth");
   lcd.setCursor(0,2);
-  int day = EEPROM.read(1023);
-  lcd.print((EEPROM.read(day - 1)),DEC);
-  Serial.println((EEPROM.read(day - 1)),DEC);
+  int day = EEPROM.read(1023) - 1;
+  Serial.print("yesterday date ");
+  Serial.println(day);
+  Serial.print("depth ");
+  Serial.println(EEPROM.read(day),DEC);
+  lcd.print(EEPROM.read(day),DEC);
   delay(100);
 }
 
@@ -188,9 +188,9 @@ void writeToEEPROM(int a)//records the recieved value to its day on the eeproms 
     timeOfLastMessage = millis();
     //int depth = (0.9821 * ((a/256) * 1023) + 57.639); uncomment this when able to record values to eeprom
     int depth = a;
-    int day = EEPROM.read(1023);
-    EEPROM.write(day,depth);//EEPROM.read(1023) is where we are going to store the day, this is because if the arduino resets it needs to know what day it was up to, first day is day 0
-    EEPROM.write(1023,day + 1);// this adds one onto the date, the date changes when the module recieves a signal, this makes it also very dependant on receiving a signal from the rf module and receiving it at the right time  
+    int today = EEPROM.read(1023) + 1;
+    EEPROM.write(1023,today);// date changes when the house arduino receieves the first signal in a while, eeprom(1023) now holds the current date
+    EEPROM.write(today,depth);//EEPROM.read(1023) is where we are going to store the day, this is because if the arduino resets it needs to know what day it was up to, first day is day 0
     Serial.println("recorded the water tank level for today, it");
     Serial.println(depth);// just prints the value recieved on the serial monitor
   }
