@@ -149,7 +149,9 @@ void rfErrorMessage()
   //to get here the we know that rfNotWorking == true
   lcd.clear();
   lcd.setCursor(0,0);
-  lcd.print("rf is not working");
+  lcd.print("rf is not");
+  lcd.setCursor(0,2);
+  lcd.print("working");
 }
 
 
@@ -194,9 +196,10 @@ void dateWaterRunsOut()
     currentWaterLevel = EEPROM.read(day);//gets todays water level
     Serial.print("current water level = ");
     Serial.println(currentWaterLevel);
+    changeAverage = changeAverage * -1;//convert from negative to positive number so the days left becomes a positive number
     daysLeft = currentWaterLevel / changeAverage;//finds out how many days until the water runs out
     
-    if (daysLeft > 0)//we cant have a negative days left
+    if (daysLeft > 0 && changeAverage != 0)//we cant have a negative days left and if the change average == 0 then daysleft is infinite
     {
       //displays the days left on the lcd and serial monitor
       Serial.print("days left = ");
