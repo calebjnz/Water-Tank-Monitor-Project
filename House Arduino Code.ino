@@ -51,24 +51,33 @@ void setup()
   Serial.begin(9600); 
   Serial.print(F("Receiver started....."));
 
-  EEPROM.write(1023,1);
-  EEPROM.write(1,5);
+  EEPROM.write(1023,1);// this is just for testing purposes
+  EEPROM.write(1,5);// this is just for testing purposes, will need to change back to 0 when real thing happens
 
 }
 
 void loop()//we are not allowed to have any delays in the loop at the moment because it has to be looking for an rf signal constantly
 {
-  if (digitalRead(2) == HIGH)// pin 2 will be high if the rf module has received a mesage i think that this is the am pin on the rf module
+   // Make data array buffer
+  int data[1];   //array size is 32 bytes defined by NRF905_MAX_PAYLOAD in library
+          
+  // Wait for data packet
+ 
+  while(!nRF905_getData(data, sizeof(data)));
   {
-    recevdMsg();//run the received message function
+    if(digitalRead(4) == HIGH)
+    {
+      
+    }
   }
+
+  Serial.println(F("Data Received....."));// it has de message
+
+  Serial.print(data[0], DEC);
   
-  //testing to see if the lcd and the interrupts and the lcd work
-  lcd.clear();
-  lcd.print("hi there");
-  Serial.println("hi there");
-  lcd.print(EEPROM.read(EEPROM.read(1023)));
-  Serial.println(EEPROM.read(EEPROM.read(1023)));
+  writeToEEPROM(data[0]);
+  // Create horizontal spacing and pause between data packets.      
+  delay(PACKETPAUSE);
 }
 
 void showTodaysWaterLevel()// the equation for pressure vs water tank depth is d = 0.9821p +57.639
