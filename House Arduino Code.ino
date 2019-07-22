@@ -156,7 +156,7 @@ void showTodaysWaterLevel()// the equation for pressure vs water tank depth is d
   Serial.println(day);
   Serial.print("depth ");
   depth = EEPROM.read(day);//because we multiplied i by 50 to get it to fit in the eeprom
-  depth = convertRawToCm(depth);
+  depth = convertRawToMeters(depth);
   Serial.println(depth);
   lcd.print(depth);
   delay(100);
@@ -175,7 +175,7 @@ void showYesterdaysWaterLevel()
   Serial.println(day);
   Serial.print("depth ");
   depth = EEPROM.read(day);//because we multiplied i by 50 to get it to fit in the eeprom
-  depth = convertRawToCm(depth);
+  depth = convertRawToMeters(depth);
   Serial.println(depth);
   lcd.print(depth);
   delay(100);
@@ -199,11 +199,11 @@ void dateWaterRunsOut()
       Serial.println(change);
     }
     changeAverage = changeTotal / numberChanges;//finds the average that the water level changes between each day on average
-    changeAverage = convertRawToCm(changeAverage);
+    changeAverage = convertRawToMeters(changeAverage);
     Serial.print("change average = ");
     Serial.println(changeAverage);
     currentWaterLevel = EEPROM.read(day);//gets todays water level
-    currentWaterLevel = convertRawToCm(currentWaterLevel);
+    currentWaterLevel = convertRawToMeters(currentWaterLevel);
     Serial.print("current water level = ");
     Serial.println(currentWaterLevel);
     daysLeft = currentWaterLevel / changeAverage;//finds out how many days until the water runs out
@@ -239,10 +239,11 @@ void dateWaterRunsOut()
   }
 }
 
-float convertRawToCm(float b)
+float convertRawToMeters(float b)
 {
-  b = b * 0.9821
-  b = b +57.639
+  b = b * 0.0049; // convert analog reading to a voltage
+  b = ((b/3.30 - 0.04) / 0.018);// this converts the voltage into kPa
+  b = (b*1000)/ 9780.60;//converts kPa to Pa by * 1000 and then makes converts that to depth by / 9780.6
   return b;
 }
 
@@ -253,11 +254,11 @@ void writeToEEPROM(int a)//records the recieved value to its day on the eeproms 
   {
     //this ensures that it only records the first signal of the burst of signals sent from the water tank
     timeOfLastMessage = millis();
-    int depth = a;//we can store a float in the eeprom memory so we will multiply this by 50 we will divide by 50 when the values are printed out
+    int pressureReading = a;//we cant store a float int the eeprom memory
     long today = EEPROM.read(1023) + 1;
     EEPROM.write(1023,today);// date changes when the house arduino receieves the first signal in a while, eeprom(1023) now holds the current date
-    EEPROM.write(today,depth);//EEPROM.read(1023) is where we are going to store the day, this is because if the arduino resets it needs to know what day it was up to, first day is day 0
-    Serial.println("recorded the water tank level for today, it");
-    Serial.println(depth);// just prints the value recieved on the serial monitor
+    EEPROM.write(today,pressureReading);//EEPROM.read(1023) is where we are going to store the day, this is because if the arduino resets it needs to know what day it was up to, first day is day 0
+    Serial.println("recorded the water tank pressureReading for today, it");
+    Serial.println(pressureReading);// just prints the value recieved on the serial monitor
   }
 }
