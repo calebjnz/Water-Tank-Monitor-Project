@@ -1,56 +1,30 @@
-
-/* nrf functions derived from 
- *  Michael Welsh September 7, 2017 for implementation using the Arduino UNO
- * To be used with complementary program transmitter_sample_JMW_V2
- *  
- * This program is designed to integrate the UNO and nRF905.  It operates in a
- * RECEIVE mode to obtain data from the transmitter.  The transmitter is also integrated to 
- * a UNO and NRF905.  This program receives up to 16 integer data types (2 bytes each) for a 
- * maximum 32 byte packet.  Range for integer is -32768 through 32767. 
- *  
+/*
+ * This program will receive the raw analog pressure readings from the arduino on the water tank.
+ * This arduino will be constantly checking for rf signals and when it receives one it will record it 
+ * to a specific eeprom slot which is dependant on its date. Every 4 seconds the lcd will change its screen
+ * to show todays water level, yesterdays water level or how many days until the water runs out.
  * 
- * Program and Library adopted from the Rethink Tech Inc. - Tinkbox (nRF905) and the
- * Jeff Rowberg I2C device class
- *  
- *  
- * UNO to nRF905 BOARD PIN/Control Feature
- *
- * 7 -> CE     Standby - High = TX/RX mode, Low = Standby
- * 8 -> PWR    Power Up - High = On, Low = Off
- * 9 -> TXE    TX or RX mode - High = TX, Low = RX
- * 2 -> CD     Carrier Detect - High when RF signal detected, for collision avoidance 
- * 3 -> DR     Data Ready - High when finished transmitting/data received
- * 10 -> CSN   SPI SS
- * 12 -> SO    SPI MISO
- * 11 -> SI    SPI MOSI
- * 13 -> SCK   SPI SCK
- * GND -> GND  Ground
-
- In this version if i turn the arduino off while this is going then things will be messed up
- 
 */
 ////////////////////////////////////////////////////////////////
 //LIBRARIES
 ///////////////////////////////////////////////////////////////
 #include <nRF905.h>  //Library Author Zak Kemble, Web: http://blog.zakkemble.co.uk/nrf905-avrarduino-librarydriver/
+
 #include <SPI.h>  //SPI Master Library for Arduino
 
-#include <EEPROM.h>
+#include <EEPROM.h>  //Arduino Library
 
-#include <LiquidCrystal.h>
+#include <LiquidCrystal.h> //Arduino Library
 LiquidCrystal lcd(A0,A1,A2,A3,A4,A5);//pins for RS, E DB4,DB5,DB6,DB7
 
-/*
-  Note in selection of the RXADDR and TXADDR.  Nordic recommends that the address length be 24 bits or higher
-  in length.   Smaller lengths can lead to statistical failures due to the address bein repeated as part of the 
-  data packet.  Each byte should be unique.  The address should have several level shifts (101010101). 
-*/
 ///////////////////////////////////////////////////////////////
 //GLOBAL VARIABLES
 ///////////////////////////////////////////////////////////////
-long int timeOfLastMessage = 0;
-long int timeOfLastScreenChange = 0;
-int screenNumber = 1;
+long int timeOfLastMessage = 0;//time of last message in milliseconds since start
+long int timeOfLastScreenChange = 0;//time of last message in milliseconds since start
+int screenNumber = 1;//used for changing the screens of the lcd
+bool rfNotWorking = false;//
+long int maxGapBetweenRfMessages = 120000;// this is equivalent to 24hrs and 20sec in milliseconds 86420000
 
 #define RXADDR {0x58, 0x6F, 0x2E, 0x10} // Address of this device (4 bytes)
 #define TXADDR {0xFE, 0x4C, 0xA6, 0xE5} // Address of device to send to (4 bytes)
@@ -85,6 +59,7 @@ void setup()
   // Start serial coomunication with monitor.  Send start message.
   Serial.begin(9600); 
   Serial.print(F("Receiver started....."));
+  
 }
 
 ///////////////////////////////////////////////////////////////
@@ -92,21 +67,23 @@ void setup()
 ///////////////////////////////////////////////////////////////
 void loop()//we are not allowed to have any delays in the loop at the moment because it has to be looking for an rf signal constantly
 {
-   // Make data array buffer
-  int data[1];   //array size is 32 bytes defined by NRF905_MAX_PAYLOAD in library
+  // Make data array buffer
+  int data[1];   //array size is 1 byte
           
   // Wait for data packet 
   while(!nRF905_getData(data, sizeof(data)))
   {
-    if(millis()- timeOfLastScreenChange > 4000)
+    if(millis()- timeOfLastScreenChange > 4000)// the while loop should be looping most of the time if the if statment looks to see if the screen needs changed
     {
-      screenNumber++;
-      timeOfLastScreenChange = millis();
-      lcd.clear();
-      lcd.setCursor(0,0);
-      lcd.print("screen change");
+      screenNumber++;//this changes the screen that is going to be displayed, each screen has a number
+      timeOfLastScreenChange = millis();//time of last screen change is the current time
       Serial.println("screen change");//for debugging
-      changeScreen();
+      changeScreen();// runs the change screen function with the new screenNumber
+    }
+    if((millis() - timeOfLastMessage) > maxGapBetweenRfMessages)//this makes sure that rf signals are still happenning every 24hrs
+    {
+      //we have not receiced a rf signal in 24hrs and 20 sec
+      rfNotWorking = true;
     }
   }
   //if we have got here then we have recieved somthing
@@ -124,7 +101,13 @@ void loop()//we are not allowed to have any delays in the loop at the moment bec
 //////////////////////////////////////////////////////////
 void changeScreen()//the screen number changes every 4sec which will make the lcd change screen
 {
-  switch(screenNumber)
+  // this is to ensure that we only go to screen 4 if rf is not working
+  // and that the screen number will never be 5;
+  if((screenNumber >= 4 && rfNotWorking == false) || screenNumber >= 5 )
+  {
+    screenNumber = 1;
+  }
+  switch(screenNumber)//choose the screen that will be displayed from the screen number
   {
     case 1: 
       showTodaysWaterLevel();
@@ -135,11 +118,9 @@ void changeScreen()//the screen number changes every 4sec which will make the lc
     case 3: 
       dateWaterRunsOut();
       break;
-    case 4:
-      screenNumber = 1;
-      showTodaysWaterLevel();
-      Serial.println("screen number is 4");
-      break;
+    case 4://we will never get to screen 4 if rf is working
+      rfErrorMessage();//displays an error message on this screen
+      // when this screens time is up the screen number will be 5 but it will go back to 1 because of the if statment     
   }
 }
 
@@ -156,10 +137,19 @@ void showTodaysWaterLevel()// the equation for pressure vs water tank depth is d
   Serial.println(day);
   Serial.print("depth ");
   depth = EEPROM.read(day);//because we multiplied i by 50 to get it to fit in the eeprom
-  depth = convertRawToMeters(depth);
-  Serial.println(depth);
   lcd.print(depth);
-  delay(100);
+  checkDepthIsGood(depth);
+  Serial.println(depth);
+  delay(30);
+}
+
+
+void rfErrorMessage()
+{
+  //to get here the we know that rfNotWorking == true
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("rf is not working");
 }
 
 
@@ -175,10 +165,10 @@ void showYesterdaysWaterLevel()
   Serial.println(day);
   Serial.print("depth ");
   depth = EEPROM.read(day);//because we multiplied i by 50 to get it to fit in the eeprom
-  depth = convertRawToMeters(depth);
-  Serial.println(depth);
   lcd.print(depth);
-  delay(100);
+  checkDepthIsGood(depth);
+  Serial.println(depth);
+  delay(30);
 }
 
 
@@ -192,23 +182,23 @@ void dateWaterRunsOut()
   float daysLeft = 0;
   if (day > 5)
   {
-    for(int j = day; j >= (day-5);j--)
+    for(int j = day; j >= (day-5);j--)// this goes through the past 5 days and sees how much it has increased/decreased from its previuos day
     {
-      int change = EEPROM.read(j) - EEPROM.read(j-1);//this should add to the total the amount that the water level has decreased or increased from the previous day of the sample day
+      int change = EEPROM.read(j) - EEPROM.read(j-1);//this adds to the total the amount that the water level has decreased or increased from the previous day of the sample day
       changeTotal += change;
       Serial.println(change);
     }
-    changeAverage = changeTotal / numberChanges;//finds the average that the water level changes between each day on average
-    changeAverage = convertRawToMeters(changeAverage);
+    changeAverage = changeTotal / numberChanges;//finds the average that the water level changes between each day
     Serial.print("change average = ");
     Serial.println(changeAverage);
     currentWaterLevel = EEPROM.read(day);//gets todays water level
-    currentWaterLevel = convertRawToMeters(currentWaterLevel);
     Serial.print("current water level = ");
     Serial.println(currentWaterLevel);
     daysLeft = currentWaterLevel / changeAverage;//finds out how many days until the water runs out
+    
     if (daysLeft > 0)//we cant have a negative days left
     {
+      //displays the days left on the lcd and serial monitor
       Serial.print("days left = ");
       Serial.println(daysLeft);
       lcd.clear();
@@ -219,8 +209,7 @@ void dateWaterRunsOut()
     }
     else
     {
-      Serial.print("days left = ");
-      Serial.println(daysLeft);
+      Serial.print("water level is increasing");
       lcd.clear();
       lcd.setCursor(0,0);
       lcd.print("water level");
@@ -237,28 +226,62 @@ void dateWaterRunsOut()
     lcd.print("data yet");
     Serial.println("not enough data yet to predict");
   }
+  delay(30);
 }
 
-float convertRawToMeters(float b)
+
+float convertAnalogReadToCm(float b)
 {
   b = b * 0.0049; // convert analog reading to a voltage
   b = ((b/3.30 - 0.04) / 0.018);// this converts the voltage into kPa
   b = (b*1000)/ 9780.60;//converts kPa to Pa by * 1000 and then makes converts that to depth by / 9780.6
+  b = b * 100; //converts from m to cm
   return b;
+}
+
+
+void checkDepthIsGood(int c)
+{
+  //this function adds onto the end of whatever that is displayed "fix" this - 
+  //if the depth is less than 0 or greater than the depth of the tank.
+  if(c < 0 || c > 250)
+  {
+    lcd.print("fix this");
+  }
+}
+
+
+void restartEEPROM()//this function will clear up the eeprom but keep the previous 30 days
+{
+  for(int originalDay = 255; originalDay >= 225; originalDay--)
+  {
+    int depth = EEPROM.read(originalDay);//gets the depth of the
+    int newDay = 30 - (255-originalDay);//day 255 becomes day 30
+    EEPROM.write(newDay,depth);//reasigns the originalday to its newday
+  }
+  EEPROM.write(1023,30);//this makes the current day 30  
+  // i dont need to clear the whole eeprom, there is no harm in keeping those values there, the will be changed
 }
 
 
 void writeToEEPROM(int a)//records the recieved value to its day on the eeproms memory
 {
-  if(millis() - timeOfLastMessage > 80000 || timeOfLastMessage == 0)//either this is the first time the program has been run or that we have not recieved signals for a while and they are new day signals
+  if(millis() - timeOfLastMessage > 50000 || timeOfLastMessage == 0)
   {
+    //either this is the first time the program has been run or that we have not recieved signals for a while and they are new day signals
     //this ensures that it only records the first signal of the burst of signals sent from the water tank
     timeOfLastMessage = millis();
-    int pressureReading = a;//we cant store a float int the eeprom memory
-    long today = EEPROM.read(1023) + 1;
-    EEPROM.write(1023,today);// date changes when the house arduino receieves the first signal in a while, eeprom(1023) now holds the current date
-    EEPROM.write(today,pressureReading);//EEPROM.read(1023) is where we are going to store the day, this is because if the arduino resets it needs to know what day it was up to, first day is day 0
-    Serial.println("recorded the water tank pressureReading for today, it");
-    Serial.println(pressureReading);// just prints the value recieved on the serial monitor
+    rfNotWorking = false;// we have been receiving rf signals
+    int depth = convertAnalogReadToCm(a);//finds the depth in cm from the rf value received
+    if(EEPROM.read(1023) >= 255)//ensures that the day value dosent exceed 255 because eeprom slot cant exceed 255
+    {
+      restartEEPROM();
+    }
+    int today = EEPROM.read(1023) + 1;// date changes when the house arduino receieves the first signal in a while, eeprom(1023) now holds the current date
+    EEPROM.write(1023,today);//EEPROM.read(1023) is where we are going to store the day, this is because if the arduino resets it needs to know what day it was up to, first day is day 0
+    EEPROM.write(today,depth);//writes the depth to that days slot
+    Serial.println("recorded the water tank depth for today in cm, it");
+    Serial.println(depth);// just prints the value recieved on the serial monitor
   }
+  delay(30);
 }
