@@ -40,9 +40,9 @@ void setup()
   rtc.writeProtect(false);
   //!!!!!!!!!!this will have to be uploaded the first time but then this will have to be removed and the sketch will have -
   //!!!!!!!!! to be uploaded again otherwise the date will change every time the arduino resets/turnsoff
- // rtc.setDOW(THURSDAY);        // Set Day-of-Week to FRIDAY
- // rtc.setTime(13,50,00);     // Set the time to 12:00:00 (24hr format)
- // rtc.setDate(18, 7, 2019);   // Set the date
+// rtc.setDOW(SUNDAY);        // Set Day-of-Week to FRIDAY
+ //rtc.setTime(17,36,00);     // Set the time to 12:00:00 (24hr format)
+ //rtc.setDate(21, 7, 2019);   // Set the date
  
   
   ///////setup pressure sensor
@@ -70,7 +70,7 @@ void loop()
   t = rtc.getTime();
   
   // the time that I set is irrelevant, the main point is that it triggers exactly every 24hrs
-  if(t.sec == 5)
+  if(t.hour == 17 && t.min == 5 && t.sec == 5)
   {    
     //we send this 30 times incase a few of the transmissions dont get through,
     //the receiver sketch will take the first one it sees and then ignores the rest
