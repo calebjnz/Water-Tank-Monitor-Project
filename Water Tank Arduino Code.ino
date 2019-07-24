@@ -13,6 +13,7 @@
 //////////////////////////////////////////////
 int pressureSensorPin = A0;
 int pressureReading = 0;
+int powerPin = A1;// this pin controls the transistor that turns on/off the power
 #define RXADDR {0xFE, 0x4C, 0xA6, 0xE5} // Address of this device (4 bytes)
 #define TXADDR {0x58, 0x6F, 0x2E, 0x10} // Address of device to send to (4 bytes)
 #define PACKETPAUSE 1000 // Short Break after sending each data packet
@@ -44,21 +45,16 @@ void setup()
  //rtc.setTime(17,36,00);     // Set the time to 12:00:00 (24hr format)
  //rtc.setDate(21, 7, 2019);   // Set the date
  
-  
   ///////setup pressure sensor
   pinMode(pressureSensorPin,INPUT);
-
-  ///////setup rf
-  nRF905_init();// Power up nRF905 and initialize 
-  byte incoming[] = RXADDR;// Send this device address to nRF905
-  nRF905_setRXAddress(incoming);
-  byte outgoing[] = TXADDR;// Send remote device address to nRF905
-  nRF905_setTXAddress(outgoing);
-  nRF905_receive();// Put into receive mode
   
-  /////// Start serial coomunication
+  /////// Start serial comunication
   Serial.begin(9600); 
   Serial.println(F("Transmitter started"));
+
+  /////// setup sundry
+  pinMode(powerPin,OUTPUT);
+  digitalWrite(powerPin,LOW);// make sure that the power is off to start with
 }
 
 /////////////////////////////////////////////
@@ -70,9 +66,13 @@ void loop()
   t = rtc.getTime();
   
   // the time that I set is irrelevant, the main point is that it triggers exactly every 24hrs
-  if(t.hour == 17 && t.min == 5 && t.sec == 5)
-  {    
-    //we send this 30 times incase a few of the transmissions dont get through,
+  if(t.sec == 5)
+  {
+    digitalWrite(powerPin,HIGH);//provide power to the rf transmitter and the pressure sensor
+    delay(10000);//turn on the power for 10 sec to warm up
+    setUpRf();//set up the transciever, it has just been turned on
+    delay(10000);//give some time for them to warm up
+    //we send the depth 30 times incase a few of the transmissions dont get through,
     //the receiver sketch will take the first one it sees and then ignores the rest
     for(int i = 1; i < 30; i++)
     {
@@ -90,6 +90,19 @@ void loop()
       Serial.println("data sent");
       delay(PACKETPAUSE);
     }
+    digitalWrite(powerPin,LOW);//turn off the power to save battery
   }
-  
+}
+///////////////////////////////////////////
+//FUNCTIONS
+//////////////////////////////////////////
+void setUpRf()
+{
+  ///////setup rf
+  nRF905_init();// Power up nRF905 and initialize 
+  byte incoming[] = RXADDR;// Send this device address to nRF905
+  nRF905_setRXAddress(incoming);
+  byte outgoing[] = TXADDR;// Send remote device address to nRF905
+  nRF905_setTXAddress(outgoing);
+  nRF905_receive();// Put into receive mode
 }
