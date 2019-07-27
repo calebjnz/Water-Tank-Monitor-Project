@@ -14,6 +14,7 @@
 int pressureSensorPin = A0;
 int pressureReading = 0;
 int powerPin = A1;// this pin controls the transistor that turns on/off the power
+long millisecondsFor23Hr = 82800000;
 #define RXADDR {0xFE, 0x4C, 0xA6, 0xE5} // Address of this device (4 bytes)
 #define TXADDR {0x58, 0x6F, 0x2E, 0x10} // Address of device to send to (4 bytes)
 #define PACKETPAUSE 1000 // Short Break after sending each data packet
@@ -66,7 +67,7 @@ void loop()
   t = rtc.getTime();
   
   // the time that I set is irrelevant, the main point is that it triggers exactly every 24hrs
-  if(t.sec == 5)
+  if(t.min == 0)
   {
     digitalWrite(powerPin,HIGH);//provide power to the rf transmitter and the pressure sensor
     delay(10000);//turn on the power for 10 sec to warm up
@@ -91,6 +92,7 @@ void loop()
       delay(PACKETPAUSE);
     }
     digitalWrite(powerPin,LOW);//turn off the power to save battery
+    delay(3300000);// this will delay the arduino for 23 hours, might as well to prevent it reading the rtc so often
   }
 }
 ///////////////////////////////////////////
