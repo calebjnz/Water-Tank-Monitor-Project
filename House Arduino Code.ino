@@ -24,7 +24,7 @@ long int timeOfLastMessage = 0;//time of last message in milliseconds since star
 long int timeOfLastScreenChange = 0;//time of last message in milliseconds since start
 int screenNumber = 1;//used for changing the screens of the lcd
 bool rfNotWorking = false;//
-long int maxGapBetweenRfMessages = 5400000; //normally its 24hrs and 20sec in milliseconds 86420000 but for testing purposes it is 1.5hr
+long int maxGapBetweenRfMessages = 90000000; // its 25 hrs
 
 #define RXADDR {0x58, 0x6F, 0x2E, 0x10} // Address of this device (4 bytes)
 #define TXADDR {0xFE, 0x4C, 0xA6, 0xE5} // Address of device to send to (4 bytes)
@@ -235,16 +235,10 @@ void dateWaterRunsOut()
 
 float convertAnalogReadToCm(float b)
 {
-  b = b - 138;
-  b = b * 0.0049; // convert analog reading to a voltage
-  b = ((b/3.30 - 0.04) / 0.018);// this converts the voltage into kPa
-  b = (b*1000)/ 9780.60;//converts kPa to Pa by * 1000 and then makes converts that to depth by / 9780.6
-  b = b * 100; //converts from m to cm
-  if (b < 0)
-  {
-    b = 0;//can have negative depths if it is less than 0 then it probably 0  
-  }
-  return b;
+  float offsetVoltage = 0.56;//the voltage when the height is 0
+  float outputVoltage = b * (5/1023);//the output coming from the pressure sensor
+  float depth = (outputVoltage - offsetVoltage) * 212;// this is the equation that we got from testing version 2
+  return depth;
 }
 
 
@@ -274,7 +268,7 @@ void restartEEPROM()//this function will clear up the eeprom but keep the previo
 
 void writeToEEPROM(int a)//records the recieved value to its day on the eeproms memory
 {
-  if(millis() - timeOfLastMessage > 120000 || timeOfLastMessage == 0)
+  if(millis() - timeOfLastMessage > 180000 || timeOfLastMessage == 0)//for it to be a new message it has to be 3 min after the previous
   {
     //either this is the first time the program has been run or that we have not recieved signals for a while and they are new day signals
     //this ensures that it only records the first signal of the burst of signals sent from the water tank
