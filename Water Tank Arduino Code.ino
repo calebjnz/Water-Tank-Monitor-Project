@@ -92,8 +92,9 @@ void loop()
       delay(PACKETPAUSE);
     }
     digitalWrite(powerPin,LOW);//turn off the power to save battery
-    delay(3300000);// this will delay the arduino for 23 hours, might as well to prevent it reading the rtc so often
+    delay(1800000);// this will delay the arduino 0.5 hours, might as well to prevent it reading the rtc so often
   }
+  delay(25000);// 25 seconds between readings, dont want to be running too fast, wastes power
 }
 ///////////////////////////////////////////
 //FUNCTIONS
