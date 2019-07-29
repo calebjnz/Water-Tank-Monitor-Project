@@ -233,11 +233,25 @@ void dateWaterRunsOut()
 }
 
 
-float convertAnalogReadToCm(float b)
+float calculateDepthFromAnalog(float b)
 {
   float offsetVoltage = 0.56;//the voltage when the height is 0
   float outputVoltage = b * (5/1023);//the output coming from the pressure sensor
   float depth = (outputVoltage - offsetVoltage) * 212;// this is the equation that we got from testing version 2
+  if (depth < 0)
+  {
+    depth = 0;
+    EEPROM.write(1000,111)// the check depth is good function will read this slot, if it is 111 then it will display an error.
+  }
+  else if (depth > 255)
+  {
+    depth = 255;
+    EEPROM.write(1000,111)// the check depth is good function will read this slot, if it is 111 then it will display an error.
+  }
+  else
+  {
+    EEPROM.write(1000,0);// the check depth is good function will read this slot,will not display a error if it = 0
+  }
   return depth;
 }
 
@@ -246,7 +260,7 @@ void checkDepthIsGood(int c)
 {
   //this function adds onto the end of whatever that is displayed "fix" this - 
   //if the depth is less than 0 or greater than the depth of the tank.
-  if(c < 0 || c > 250)
+  if(EEPROM.read(1000) == 111)
   {
     lcd.print("fix this");
   }
@@ -276,7 +290,7 @@ void writeToEEPROM(int a)//records the recieved value to its day on the eeproms 
     rfNotWorking = false;// we have been receiving rf signals
     Serial.print("raw analog recived = ");
     Serial.println(a);
-    int depth = convertAnalogReadToCm(a);//finds the depth in cm from the rf value received
+    int depth = calculateDepthFromAnalog(a);//finds the depth in cm from the rf value received
     if(EEPROM.read(1023) >= 255)//ensures that the day value dosent exceed 255 because eeprom slot cant exceed 255
     {
       restartEEPROM();
