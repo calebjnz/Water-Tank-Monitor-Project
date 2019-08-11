@@ -1,10 +1,11 @@
 
-/* this sketch will send the presssure data from the water tank to the house arduino so the user can read it.
- *  
- *  
- *  
- *  
- * DO NOT PUT THUMB OVER LIGHT SENSOR, IT DOES WIERD THINGS AND YOUR HAVE TO RE UPLOAD A SKETCH TO IT
+/* 
+ *  this sketch will read the presssure sensor and then send 
+ *  that data to the house arduino by RF. There is also a clock module that ensures
+ *  that the the data is sent at the same time every day, even if it is turned off
+ *  it will not lose track of time. To save power some transistors have been added to control the 
+ *  grounds of the pressure sensor and rf module. The transistors are both turned on with the powerPin.
+ *  sketch by caleb jackson
  */
 
 
@@ -14,7 +15,7 @@
 int pressureSensorPin = A0;
 int pressureReading = 0;
 int powerPin = A1;// this pin controls the transistor that turns on/off the power
-long millisecondsFor23Hr = 82800000;
+const long millisecondsFor23Hr = 82800000;
 #define RXADDR {0xFE, 0x4C, 0xA6, 0xE5} // Address of this device (4 bytes)
 #define TXADDR {0x58, 0x6F, 0x2E, 0x10} // Address of device to send to (4 bytes)
 #define PACKETPAUSE 1000 // Short Break after sending each data packet
@@ -40,11 +41,11 @@ void setup()
   // Set the clock to run-mode, and disable the write protection
   rtc.halt(false);
   rtc.writeProtect(false);
-  //!!!!!!!!!!this will have to be uploaded the first time but then this will have to be removed and the sketch will have -
+  //!!!!!!!!!!this will have to be uploaded the first time but then will have to be removed and the sketch will have -
   //!!!!!!!!! to be uploaded again otherwise the date will change every time the arduino resets/turnsoff
-// rtc.setDOW(SUNDAY);        // Set Day-of-Week to FRIDAY
- //rtc.setTime(17,36,00);     // Set the time to 12:00:00 (24hr format)
- //rtc.setDate(21, 7, 2019);   // Set the date
+  //rtc.setDOW(SUNDAY);        // Set Day-of-Week to FRIDAY
+  //rtc.setTime(17,36,00);     // Set the time to 12:00:00 (24hr format)
+  //rtc.setDate(21, 7, 2019);   // Set the date
  
   ///////setup pressure sensor
   pinMode(pressureSensorPin,INPUT);
@@ -66,8 +67,7 @@ void loop()
   //get data from clock module
   t = rtc.getTime();
   
-  // the time that I set is irrelevant, the main point is that it triggers exactly every 24hrs
-  if(t.min == 0)
+  if(t.hour == 18 && t.min == 0)
   {
     digitalWrite(powerPin,HIGH);//provide power to the rf transmitter and the pressure sensor
     delay(10000);//turn on the power for 10 sec to warm up
@@ -91,10 +91,11 @@ void loop()
       Serial.println("data sent");
       delay(PACKETPAUSE);
     }
-    digitalWrite(powerPin,LOW);//turn off the power to save battery
-    delay(1800000);// this will delay the arduino 0.5 hours, might as well to prevent it reading the rtc so often
+    digitalWrite(powerPin,LOW);//turn off the pressure sensor and rf to save battery
+    delay(millisecondsFor23Hr);// this will delay the arduino 23hr hours, might as well to prevent it reading the rtc so often.
+    //if the arduino turns off during this time it will stop the 23hr delay and check the time every 15s because the sketch restarts
   }
-  delay(25000);// 25 seconds between readings, dont want to be running too fast, wastes power
+  delay(15000);// 15 seconds between readings, dont want to be running too fast, wastes power
 }
 ///////////////////////////////////////////
 //FUNCTIONS
@@ -104,8 +105,8 @@ void setUpRf()
   ///////setup rf
   nRF905_init();// Power up nRF905 and initialize 
   byte incoming[] = RXADDR;// Send this device address to nRF905
-  nRF905_setRXAddress(incoming);
+  nRF905_setRXAddress(incoming);// set the address
   byte outgoing[] = TXADDR;// Send remote device address to nRF905
-  nRF905_setTXAddress(outgoing);
+  nRF905_setTXAddress(outgoing);//set the address
   nRF905_receive();// Put into receive mode
 }

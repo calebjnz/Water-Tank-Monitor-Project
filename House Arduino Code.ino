@@ -24,7 +24,7 @@ long int timeOfLastMessage = 0;//time of last message in milliseconds since star
 long int timeOfLastScreenChange = 0;//time of last message in milliseconds since start
 int screenNumber = 1;//used for changing the screens of the lcd
 bool rfNotWorking = false;//
-long int maxGapBetweenRfMessages = 90000000; // its 25 hrs
+const long int maxGapBetweenRfMessages = 90000000; // its 25 hrs
 
 #define RXADDR {0x58, 0x6F, 0x2E, 0x10} // Address of this device (4 bytes)
 #define TXADDR {0xFE, 0x4C, 0xA6, 0xE5} // Address of device to send to (4 bytes)
@@ -87,8 +87,7 @@ void loop()//we are not allowed to have any delays in the loop at the moment bec
     }
   }
   //if we have got here then we have recieved somthing
-  Serial.println("Data Received.....");// it has de message
-
+  Serial.println("Data Received.....");// debugging
   Serial.println(data[0], DEC);
   
   writeToEEPROM(data[0]);
@@ -103,7 +102,7 @@ void changeScreen()//the screen number changes every 4sec which will make the lc
 {
   // this is to ensure that we only go to screen 4 if rf is not working
   // and that the screen number will never be 5;
-  if((screenNumber >= 4 && rfNotWorking == false) || screenNumber >= 5 )
+  if((screenNumber >= 4 && rfNotWorking == false) || screenNumber > 4 )
   {
     screenNumber = 1;
   }
@@ -140,7 +139,6 @@ void showTodaysWaterLevel()// the equation for pressure vs water tank depth is d
   lcd.print(depth);
   checkDepthIsGood(depth);
   Serial.println(depth);
-  delay(30);
 }
 
 
@@ -168,9 +166,8 @@ void showYesterdaysWaterLevel()
   Serial.print("depth ");
   depth = EEPROM.read(day);//because we multiplied i by 50 to get it to fit in the eeprom
   lcd.print(depth);
-  checkDepthIsGood(depth);
-  Serial.println(depth);
-  delay(30);
+  checkDepthIsGood(depth);//if the depth is not good it will add fix this on the end of the sentence
+  Serial.println(depth);//debugging
 }
 
 
@@ -229,7 +226,6 @@ void dateWaterRunsOut()
     lcd.print("data yet");
     Serial.println("not enough data yet to predict");
   }
-  delay(30);
 }
 
 
@@ -301,5 +297,5 @@ void writeToEEPROM(int a)//records the recieved value to its day on the eeproms 
     Serial.println("recorded the water tank depth for today in cm, it");
     Serial.println(depth);// just prints the value recieved on the serial monitor
   }
-  delay(30);
+  delay(30);//gives time for arduino to think
 }
